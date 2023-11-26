@@ -1,64 +1,46 @@
-from langchain.chat_models import ChatOpenAI
-from langchain.chains import ConversationChain
-from langchain.chains.conversation.memory import ConversationBufferWindowMemory
-from langchain.prompts import (
-    SystemMessagePromptTemplate,
-    HumanMessagePromptTemplate,
-    ChatPromptTemplate,
-    MessagesPlaceholder
-)
+# 6_qa_vectordb.py
+import dotenv
+import os
+
 import streamlit as st
-from streamlit_chat import message
-from utils import *
 
-st.subheader("Ask My Book")
+from langchain.vectorstores import Pinecone
+import pinecone
 
-if 'responses' not in st.session_state:
-    st.session_state['responses'] = ["How can I assist you?"]
+from langchain.llms import OpenAI
+from langchain.chains.question_answering import load_qa_chain
+from langchain.embeddings.openai import OpenAIEmbeddings
 
-if 'requests' not in st.session_state:
-    st.session_state['requests'] = []
+dotenv.load_dotenv()
+OPENAI_API_KEY = os.getenv("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")
+PINECONE_API_KEY = os.getenv("cb6daa82-866c-4b72-9eec-69bdd54a9024")
+PINECONE_INDEX="job"
+PINECONE_ENVIRONMENT = "gcp-starter"
 
-llm = ChatOpenAI(model_name="gpt-3.5-turbo", openai_api_key = st.secrets["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"])
+embeddings = OpenAIEmbeddings()
 
-if 'buffer_memory' not in st.session_state:
-            st.session_state.buffer_memory=ConversationBufferWindowMemory(k=3,return_messages=True)
+pinecone.init(api_key=PINECONE_API_KEY , environment=PINECONE_ENVIRONMENT)
+docsearch = Pinecone.from_existing_index(PINECONE_INDEX,embeddings)
 
+# query = "What did the president say about Ketanji Brown Jackson"
+# docs = docsearch.similarity_search(query)
 
-system_msg_template = SystemMessagePromptTemplate.from_template(template="""Answer the question as truthfully as possible using the provided context, 
-and if the answer is not contained within the text below, say 'I don't know'""")
+# print(docs)
 
+# Create OPENAI LLM instance
+llm = OpenAI(temperature=0, openai_api_key=OPENAI_API_KEY)
+chain = load_qa_chain(llm, chain_type="stuff")
 
-human_msg_template = HumanMessagePromptTemplate.from_template(template="{input}")
+# Create a Streamlit app.
+st.title("Interview Practice App")
 
-prompt_template = ChatPromptTemplate.from_messages([system_msg_template, MessagesPlaceholder(variable_name="history"), human_msg_template])
+# Prompt user to type their question
+query = st.text_input("Question: Type your question here. when you done, type quit:")
 
-conversation = ConversationChain(memory=st.session_state.buffer_memory, prompt=prompt_template, llm=llm, verbose=True)
+if query != "quit":
+    docs = docsearch.similarity_search(query)
+    answer = chain.run(input_documents=docs, question=query)
+    st.write(answer)
+else:
+    st.write("You are done.  Thank you for using the app.")
 
-
-# container for chat history
-response_container = st.container()
-# container for text box
-textcontainer = st.container()
-
-with textcontainer:
-    query = st.text_input("Query: ", key="input")
-    if query:
-        with st.spinner("typing..."):
-            conversation_string = get_conversation_string()
-            # st.code(conversation_string)
-            refined_query = query_refiner(conversation_string, query)
-            # st.subheader("Refined Query:")
-            # st.write(refined_query)
-            context = find_match(refined_query)
-            # print(context)  
-            response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{query}")
-        st.session_state.requests.append(query)
-        st.session_state.responses.append(response) 
-with response_container:
-    if st.session_state['responses']:
-
-        for i in range(len(st.session_state['responses'])):
-            message(st.session_state['responses'][i],key=str(i))
-            if i < len(st.session_state['requests']):
-                message(st.session_state["requests"][i], is_user=True,key=str(i)+ '_user')

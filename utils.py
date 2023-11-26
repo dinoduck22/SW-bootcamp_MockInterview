@@ -1,54 +1,40 @@
+# 6_save_vectordb.py
+
 import pinecone
-from langchain.vectorstores import Pinecone
-import streamlit as st
+import dotenv
 import openai
-from sentence_transformers import SentenceTransformer
-from langchain.embeddings import SentenceTransformerEmbeddings
+import os
 
-model = SentenceTransformer('all-MiniLM-L6-v2')
-pinecone.init(
-    api_key=st.secrets["cb6daa82-866c-4b72-9eec-69bdd54a9024"],  # find at app.pinecone.io
-    environment=st.secrets["cb6daa82-866c-4b72-9eec-69bdd54a9024"]  # next to api key in console
-)
-index_name = "bookdb"  # put in the name of your pinecone index here
+import pandas as pd
+import numpy as np
+import streamlit as st
 
-index = pinecone.Index(index_name)
-index_stats_response = index.describe_index_stats()
-print(index_stats_response)
-embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
-docsearch = Pinecone.from_existing_index(index_name, embeddings)
+from langchain.vectorstores import Chroma, Pinecone
+from langchain.embeddings.openai import OpenAIEmbeddings
+import pinecone
 
+from langchain.llms import OpenAI
+from langchain.chains.question_answering import load_qa_chain
 
-def get_similiar_docs(query, k=3, score=False):
-    if score:
-        similar_docs = index.similarity_search_with_score(query, k=k)
-    else:
-        similar_docs = docsearch.max_marginal_relevance_search(query, k=k, fetch_k=10)
-    return similar_docs
+dotenv.load_dotenv()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+PINECONE_INDEX="job"
+PINECONE_ENVIRONMENT = "gcp-starter"
+DOC_PATH = "../data/openai_engineer.csv"
 
+embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
 
-def get_conversation_string():
-    conversation_string = ""
-    for i in range(len(st.session_state['responses']) - 1):
-        conversation_string += "Human: " + st.session_state['requests'][i] + "\n"
-        conversation_string += "Bot: " + st.session_state['responses'][i + 1] + "\n"
-    return conversation_string
+pinecone.init(api_key=PINECONE_API_KEY , environment=PINECONE_ENVIRONMENT)
+
+# load the documents to use for questions and aswnersingst
+df = pd.read_csv(DOC_PATH)
+
+# create lists for the vectors and the ids
+texts = df['text'].tolist()
 
 
-def find_match(input):
-    input_em = model.encode(input).tolist()
-    result = index.query(input_em, top_k=2, includeMetadata=True)
-    return result['matches'][0]['metadata']['text'] + "\n" + result['matches'][1]['metadata']['text']
+# Create or upsert the data to the Pinecone index
+index = Pinecone.from_texts(texts, embeddings, index_name=PINECONE_INDEX)
 
 
-def query_refiner(conversation, query):
-    response = openai.Completion.create(
-        model="text-davinci-003",
-        prompt=f"Given the following user query and conversation log, formulate a question that would be the most relevant to provide the user with an answer from a knowledge base.\n\nCONVERSATION LOG: \n{conversation}\n\nQuery: {query}\n\nRefined Query:",
-        temperature=0.7,
-        max_tokens=256,
-        top_p=1,
-        frequency_penalty=0,
-        presence_penalty=0
-    )
-    return response['choices'][0]['text']
