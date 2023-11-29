@@ -1,40 +1,46 @@
-# 6_save_vectordb.py
-
-import pinecone
+# 6_qa_vectordb.py
 import dotenv
-import openai
 import os
 
-import pandas as pd
-import numpy as np
 import streamlit as st
 
-from langchain.vectorstores import Chroma, Pinecone
-from langchain.embeddings.openai import OpenAIEmbeddings
+# from langchain.vectorstores import Pinecone
 import pinecone
 
 from langchain.llms import OpenAI
 from langchain.chains.question_answering import load_qa_chain
+from langchain.embeddings.openai import OpenAIEmbeddings
 
 dotenv.load_dotenv()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+OPENAI_API_KEY = os.getenv("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")
+PINECONE_API_KEY = os.getenv("cb6daa82-866c-4b72-9eec-69bdd54a9024")
 PINECONE_INDEX="job"
 PINECONE_ENVIRONMENT = "gcp-starter"
-DOC_PATH = "../data/openai_engineer.csv"
 
-embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
+embeddings = OpenAIEmbeddings()
 
 pinecone.init(api_key=PINECONE_API_KEY , environment=PINECONE_ENVIRONMENT)
+docsearch = Pinecone.from_existing_index(PINECONE_INDEX,embeddings)
 
-# load the documents to use for questions and aswnersingst
-df = pd.read_csv(DOC_PATH)
+# query = "What did the president say about Ketanji Brown Jackson"
+# docs = docsearch.similarity_search(query)
 
-# create lists for the vectors and the ids
-texts = df['text'].tolist()
+# print(docs)
 
+# Create OPENAI LLM instance
+llm = OpenAI(temperature=0, openai_api_key=OPENAI_API_KEY)
+chain = load_qa_chain(llm, chain_type="stuff")
 
-# Create or upsert the data to the Pinecone index
-index = Pinecone.from_texts(texts, embeddings, index_name=PINECONE_INDEX)
+# Create a Streamlit app.
+st.title("Interview Practice App")
 
+# Prompt user to type their question
+query = st.text_input("Question: Type your question here. when you done, type quit:")
+
+if query != "quit":
+    docs = docsearch.similarity_search(query)
+    answer = chain.run(input_documents=docs, question=query)
+    st.write(answer)
+else:
+    st.write("You are done.  Thank you for using the app.")
 
