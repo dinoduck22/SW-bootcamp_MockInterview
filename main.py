@@ -2,12 +2,12 @@ import streamlit as st
 import base64
 from openai import OpenAI
 # speech to text
-from bokeh.models import CustomJS, Button
+from bokeh.models import CustomJS, Button, Toggle
 from streamlit_bokeh_events import streamlit_bokeh_events
 # video
-import cv2
-import numpy as np
-import tempfile
+from streamlit_webrtc import WebRtcMode, webrtc_streamer
+from streamlit_float import *
+
 
 # 레이아웃
 st.set_page_config(layout="wide")
@@ -29,16 +29,29 @@ question = "Hello, this is AI mock Interview."
 if 'messages' not in st.session_state:
     st.session_state.messages = [{"role": "assistant", "content": question}]
 
+
 # 자막 버튼
 def caption():
-    begin = st.container()
-    st.text('')  # 줄바꿈
     col_buttonl, col_buttonr = st.columns([1, 1])  # 비율 col_buttonl : col_buttonr
     with col_buttonl:
         if st.button('caption'):
-            begin.text("AI : " + st.session_state.messages[-1].get("content"))
+            with st.chat_message("assistant"):
+                st.markdown(st.session_state.messages[-1].get("content"))
             with col_buttonr:
                 st.button('cancel')
+
+
+# TTS from AI
+def tts():
+    tts_button = Button(label="AI Answer", width=100)
+    tts_button.js_on_event("button_click", CustomJS(code=f"""
+                var u = new SpeechSynthesisUtterance();
+                u.text = "{st.session_state.messages[-1].get("content")}";
+                u.lang = 'en-US';
+
+                speechSynthesis.speak(u);
+                """))
+    st.bokeh_chart(tts_button)
 
 
 # speech to text
@@ -71,35 +84,47 @@ def record():
         events="GET_TEXT",
         key="listen",
         refresh_on_update=False,
-        override_height=75,
+        override_height=40,
         debounce_time=0)
 
     if result:
         if "GET_TEXT" in result:
             userinput = result.get("GET_TEXT")
-            st.write(userinput)
+            with st.chat_message("user"):
+                st.write(userinput)
             return userinput
 
 
 # 사이드 바
-def chat():
-    userinput = record()
-    if userinput is not None:
-        prompt = userinput
-        userinput = None
+def chatlog():
     st.sidebar.title("Chat Log")
     # Display chat history
     for messages in st.session_state.messages:
         with st.sidebar.chat_message(messages["role"]):
             st.markdown(messages["content"])
+    # recording & AI speaking
+    rec_col1, rec_col2 = st.columns([1, 1])  # 비율 rec_col1 : rec_rol2
+    with rec_col1:
+        tts()  # AI tts
+    with rec_col2:
+        userinput = record()  # user recording
     # Chat Input & AI question
-    if prompt := st.chat_input("Type in your answer"):
-        st.session_state.messages.append({"role": "user", "content": prompt})  # Add to chat history
-        with st.sidebar.chat_message("user"):
-            st.markdown(prompt)  # Display user message
-        with st.sidebar.chat_message("assistant"):  # Display assistant response in chat message container
-            message_placeholder = st.empty()
-            full_response = ""
+    prompt = st.chat_input("Type in your answer")
+    if userinput is not None:
+        response(userinput)
+    if prompt:
+        response(prompt)
+    userinput = None
+
+
+# AI chat response
+def response(prompt):
+    st.session_state.messages.append({"role": "user", "content": prompt})  # Add to chat history
+    with st.sidebar.chat_message("user"):
+        st.markdown(prompt)  # Display user message
+    with st.sidebar.chat_message("assistant"):  # Display assistant response in chat message container
+        message_placeholder = st.empty()
+        full_response = ""
         for response in client.chat.completions.create(
                 model=st.session_state["openai_model"],
                 messages=[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages],
@@ -113,40 +138,31 @@ def chat():
 
 # AI 화면
 def aivideo():
-    video_file = open('jobinterview.mp4', 'rb')
-    video_bytes = video_file.read()
-    st.video(video_bytes)
+    file_ = open("jobinterview.gif", "rb")
+    contents = file_.read()
+    data_url = base64.b64encode(contents).decode("utf-8")
+    file_.close()
+
+    st.markdown(
+        f'<img src="data:image/gif;base64,{data_url}" alt="job-interview" width="100%">',
+        unsafe_allow_html=True,
+    )
+
 
 # 사용자 화면
 def uservideo():
-    cap = cv2.VideoCapture(0)
-    frame_placeholder = st.empty()
-    stop_button_pressed = st.button("Stop")
-    while cap.isOpened() and not stop_button_pressed:
-        ret, frame = cap.read()
-
-        if not ret:
-            st.write("The video capture has ended.")
-            break
-
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-        frame_placeholder.image(frame, channels="RGB")
-
-        if stop_button_pressed:
-            break
-    cap.release()
+    webrtc_ctx = webrtc_streamer(
+        key="object-detection",
+        mode=WebRtcMode.SENDRECV,
+        media_stream_constraints={"video": True, "audio": False},
+        async_processing=True,
+    )
 
 
 # 메인
 def main():
     # 제목 및 내용
     st.title("AI mock interview")
-    st.text("To start the mock Interview, answer the following question")
-    # 사이드 바
-    chat()
-    # 버튼
-    caption()
     # 화면
     col1, col2, col3 = st.columns([0.2, 1, 0.2])  # 비율 col1:col2:col3
     with col2:
@@ -154,7 +170,10 @@ def main():
         aivideo()
         # 사용자 화면
         uservideo()
-
+    # 사이드 바
+    chatlog()
+    # AI 자막
+    caption()
 
 
 if __name__ == '__main__':

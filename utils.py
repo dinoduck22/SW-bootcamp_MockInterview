@@ -12,8 +12,8 @@ from langchain.chains.question_answering import load_qa_chain
 from langchain.embeddings.openai import OpenAIEmbeddings
 
 dotenv.load_dotenv()
-OPENAI_API_KEY = os.getenv("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")
-PINECONE_API_KEY = os.getenv("cb6daa82-866c-4b72-9eec-69bdd54a9024")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PINECONE_INDEX="job"
 PINECONE_ENVIRONMENT = "gcp-starter"
 
