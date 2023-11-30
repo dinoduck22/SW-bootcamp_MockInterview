@@ -1,5 +1,4 @@
 import streamlit as st
-import base64
 from openai import OpenAI
 # speech to text
 from bokeh.models import CustomJS, Button, Toggle
@@ -7,6 +6,8 @@ from streamlit_bokeh_events import streamlit_bokeh_events
 # video
 from streamlit_webrtc import WebRtcMode, webrtc_streamer
 from streamlit_float import *
+# AI
+from face_AI import faceanima
 
 
 # 레이아웃
@@ -138,15 +139,7 @@ def response(prompt):
 
 # AI 화면
 def aivideo():
-    file_ = open("jobinterview.gif", "rb")
-    contents = file_.read()
-    data_url = base64.b64encode(contents).decode("utf-8")
-    file_.close()
-
-    st.markdown(
-        f'<img src="data:image/gif;base64,{data_url}" alt="job-interview" width="100%">',
-        unsafe_allow_html=True,
-    )
+    faceanima()
 
 
 # 사용자 화면

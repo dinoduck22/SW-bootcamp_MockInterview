@@ -1,10 +1,10 @@
-# 6_qa_vectordb.py
+# 6_qa_vectordb.py by mentor Jeong
 import dotenv
 import os
 
 import streamlit as st
 
-# from langchain.vectorstores import Pinecone
+from langchain.vectorstores import Pinecone
 import pinecone
 
 from langchain.llms import OpenAI
@@ -19,8 +19,8 @@ PINECONE_ENVIRONMENT = "gcp-starter"
 
 embeddings = OpenAIEmbeddings()
 
-pinecone.init(api_key=PINECONE_API_KEY , environment=PINECONE_ENVIRONMENT)
-docsearch = Pinecone.from_existing_index(PINECONE_INDEX,embeddings)
+pinecone.init(api_key=PINECONE_API_KEY, environment=PINECONE_ENVIRONMENT)
+docsearch = Pinecone.from_existing_index(PINECONE_INDEX, embeddings)
 
 # query = "What did the president say about Ketanji Brown Jackson"
 # docs = docsearch.similarity_search(query)

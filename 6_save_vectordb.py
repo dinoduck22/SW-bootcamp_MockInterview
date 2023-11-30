@@ -1,3 +1,4 @@
+# 6_save_vectordb.py by mentor Jeong
 import pinecone
 import dotenv
 import openai
@@ -17,7 +18,7 @@ from langchain.chains.question_answering import load_qa_chain
 dotenv.load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-PINECONE_INDEX="job"
+PINECONE_INDEX = "job"
 PINECONE_ENVIRONMENT = "gcp-starter"
 DOC_PATH = "../data/openai_engineer.csv"
 
