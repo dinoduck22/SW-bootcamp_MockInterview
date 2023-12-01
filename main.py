@@ -8,6 +8,8 @@ from streamlit_webrtc import WebRtcMode, webrtc_streamer
 from streamlit_float import *
 # AI
 from face_AI import faceanima
+# chat LLM
+from qa_vectordb import reply
 
 
 # 레이아웃
@@ -110,29 +112,22 @@ def chatlog():
     with rec_col2:
         userinput = record()  # user recording
     # Chat Input & AI question
-    prompt = st.chat_input("Type in your answer")
+    query = st.chat_input("Type in your answer")
     if userinput is not None:
         response(userinput)
-    if prompt:
-        response(prompt)
+    if query:
+        response(query)
     userinput = None
 
 
 # AI chat response
-def response(prompt):
-    st.session_state.messages.append({"role": "user", "content": prompt})  # Add to chat history
+def response(query):
+    st.session_state.messages.append({"role": "user", "content": query})  # Add to chat history
     with st.sidebar.chat_message("user"):
-        st.markdown(prompt)  # Display user message
+        st.markdown(query)  # Display user message
     with st.sidebar.chat_message("assistant"):  # Display assistant response in chat message container
         message_placeholder = st.empty()
-        full_response = ""
-        for response in client.chat.completions.create(
-                model=st.session_state["openai_model"],
-                messages=[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages],
-                stream=True,
-        ):
-            full_response += (response.choices[0].delta.content or "")
-            message_placeholder.markdown(full_response + " ")
+        full_response = reply(query)  # LLM
         message_placeholder.markdown(full_response)
         st.session_state.messages.append({"role": "assistant", "content": full_response})
 
