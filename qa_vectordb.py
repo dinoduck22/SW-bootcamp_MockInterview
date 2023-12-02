@@ -46,7 +46,6 @@ docsearch = Pinecone.from_documents(documents, embeddings_model, index_name=PINE
 
 # Create OPENAI LLM instance
 llm = OpenAI(temperature=0, openai_api_key=OPENAI_API_KEY)
-llm("give me a job interview question")
 chain = load_qa_chain(llm, chain_type="stuff")
 
 

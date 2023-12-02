@@ -10,10 +10,13 @@ from streamlit_float import *
 from face_AI import faceanima
 # chat LLM
 from qa_vectordb import reply
+# float
+from streamlit_float import *
 
 
 # 레이아웃
-st.set_page_config(layout="wide")
+st.set_page_config(layout="wide", initial_sidebar_state="collapsed")
+
 # 초기화
 if 'caption' not in st.session_state:  # 버튼 내용
     st.session_state.caption = ""
@@ -35,18 +38,14 @@ if 'messages' not in st.session_state:
 
 # 자막 버튼
 def caption():
-    col_buttonl, col_buttonr = st.columns([1, 1])  # 비율 col_buttonl : col_buttonr
-    with col_buttonl:
-        if st.button('caption'):
-            with st.chat_message("assistant"):
-                st.markdown(st.session_state.messages[-1].get("content"))
-            with col_buttonr:
-                st.button('cancel')
+    with st.chat_message("assistant"):
+        st.markdown(st.session_state.messages[-1].get("content"))
+
 
 
 # TTS from AI
 def tts():
-    tts_button = Button(label="AI Answer", width=100)
+    tts_button = Button(label="Speak AI", width=100)
     tts_button.js_on_event("button_click", CustomJS(code=f"""
                 var u = new SpeechSynthesisUtterance();
                 u.text = "{st.session_state.messages[-1].get("content")}";
@@ -60,7 +59,7 @@ def tts():
 # speech to text
 def record():
     # speech to text
-    stt_button = Button(label="Speak", width=100, align='center')
+    stt_button = Button(label="Voice Input", width=100, align='center')
 
     stt_button.js_on_event("button_click", CustomJS(code="""
         
@@ -101,16 +100,14 @@ def record():
 # 사이드 바
 def chatlog():
     st.sidebar.title("Chat Log")
+
     # Display chat history
     for messages in st.session_state.messages:
         with st.sidebar.chat_message(messages["role"]):
             st.markdown(messages["content"])
     # recording & AI speaking
-    rec_col1, rec_col2 = st.columns([1, 1])  # 비율 rec_col1 : rec_rol2
-    with rec_col1:
-        tts()  # AI tts
-    with rec_col2:
-        userinput = record()  # user recording
+    tts()  # AI tts
+    userinput = record()  # user recording
     # Chat Input & AI question
     query = st.chat_input("Type in your answer")
     if userinput is not None:
@@ -118,7 +115,6 @@ def chatlog():
     if query:
         response(query)
     userinput = None
-
 
 
 # AI chat response
@@ -148,21 +144,61 @@ def uservideo():
     )
 
 
+def floating():
+    # Float feature initialization
+    float_init()
+
+    # Initialize session variable that will open/close dialog
+    if "show" not in st.session_state:
+        st.session_state.show = False
+
+
+    # Container with expand/collapse button
+    button_container = st.container()
+    with button_container:
+        if st.session_state.show:
+            if st.button("⭳", type="primary"):
+                st.session_state.show = False
+                st.experimental_rerun()
+        else:
+            if st.button("⭱", type="secondary"):
+                st.session_state.show = True
+                st.experimental_rerun()
+
+    # Alter CSS based on expand/collapse state
+    if st.session_state.show:
+        vid_y_pos = "2rem"
+        button_b_pos = "21rem"
+    else:
+        vid_y_pos = "-19.5rem"
+        button_b_pos = "1rem"
+
+    button_css = float_css_helper(width="2.2rem", right="2rem", bottom=button_b_pos, transition=0)
+
+    # Float button container
+    button_container.float(button_css)
+
+    # Add Float Box
+    float_box(
+        '<iframe width="100%" height="100%" src="https://www.youtube.com/embed/J8TgKxomS2g?si=Ir_bq_E5e9jHAEFw" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>',
+        width="29rem", right="2rem", bottom=vid_y_pos,
+        css="padding: 0;transition-property: all;transition-duration: .5s;transition-timing-function: cubic-bezier(0, 1, 0.5, 1);",
+        shadow=12)
+
+
 # 메인
 def main():
-    # 제목 및 내용
-    st.title("AI mock interview")
     # 화면
     col1, col2, col3 = st.columns([0.2, 1, 0.2])  # 비율 col1:col2:col3
     with col2:
         # AI 화면
         aivideo()
-        # 사용자 화면
-        uservideo()
-    # 사이드 바
-    chatlog()
+    # 사용자 화면
+    floating()
     # AI 자막
     caption()
+    # 사이드 바
+    chatlog()
 
 
 if __name__ == '__main__':
