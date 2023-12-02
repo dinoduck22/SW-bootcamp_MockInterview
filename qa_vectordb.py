@@ -21,29 +21,34 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PINECONE_INDEX="job"
 PINECONE_ENVIRONMENT = "gcp-starter"
-DOC_PATH = "./overflow.txt"
 
 # open ai 임베딩
-embeddings = OpenAIEmbeddings()
+embeddings_model = OpenAIEmbeddings()
 
 # text loading
+DOC_PATH = "./overflow.txt"
 loader = TextLoader(DOC_PATH, autodetect_encoding=True)
 documents = loader.load()
-text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
-doc = text_splitter.split_documents(documents)
+# text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=20)
+# docs = text_splitter.split_documents(documents)
+# st.write(docs[1])
+# str1= ''.join(str(s) for s in docs)
+# str2= str1.split('"')[1]
+# st.write(str2)
+
+# embeddings
+embeddings = embeddings_model.embed_documents([documents[0].page_content])
 
 # pinecone 설정
 pinecone.init(api_key=PINECONE_API_KEY, environment=PINECONE_ENVIRONMENT)
-# First, check if our index already exists. If it doesn't, we create it
-if PINECONE_INDEX not in pinecone.list_indexes():
-    # we create a new index
-    pinecone.create_index(name=PINECONE_INDEX, metric="cosine", dimension=1536)
-# The OpenAI embedding model `text-embedding-ada-002 uses 1536 dimensions`
-docsearch = Pinecone.from_documents(doc, embeddings, index_name=PINECONE_INDEX)
+docsearch = Pinecone.from_documents(documents, embeddings_model, index_name=PINECONE_INDEX)
+
 
 # Create OPENAI LLM instance
 llm = OpenAI(temperature=0, openai_api_key=OPENAI_API_KEY)
+llm("give me a job interview question")
 chain = load_qa_chain(llm, chain_type="stuff")
+
 
 # query = how is overflow founded
 

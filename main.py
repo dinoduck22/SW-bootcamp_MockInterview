@@ -120,6 +120,7 @@ def chatlog():
     userinput = None
 
 
+
 # AI chat response
 def response(query):
     st.session_state.messages.append({"role": "user", "content": query})  # Add to chat history
